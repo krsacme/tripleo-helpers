@@ -6,6 +6,7 @@ import yaml
 from keystoneauth1 import loading
 from keystoneauth1 import session
 from heatclient import client
+from keystoneauth1.identity import v3
 
 
 def resource_nested_identifier(rsrc):
@@ -18,12 +19,26 @@ def resource_nested_identifier(rsrc):
 
 
 def get_heat_client():
-    loader = loading.get_plugin_loader('password')
-    auth = loader.load_from_options(auth_url=os.environ['OS_AUTH_URL'],
-                                    username=os.environ['OS_USERNAME'],
-                                    password=os.environ['OS_PASSWORD'],
-                                    project_name=os.environ['OS_PROJECT_NAME'])
-    sess = session.Session(auth=auth)
+    if os.environ['OS_IDENTITY_API_VERSION'] == '3':
+        # keystone v3
+        password = v3.PasswordMethod(username=os.environ['OS_USERNAME'],
+                                     password=os.environ['OS_PASSWORD'],
+                                     user_domain_name=os.environ['OS_USER_DOMAIN_NAME'])
+        auth = v3.Auth(auth_url=os.environ['OS_AUTH_URL'] + 'v3',
+                       auth_methods=[password],
+                       project_name=os.environ['OS_PROJECT_NAME'],
+                       project_domain_name=os.environ['OS_PROJECT_DOMAIN_NAME'])
+        sess = session.Session(auth=auth)
+    else:
+        loader = loading.get_plugin_loader('password')
+        auth = loader.load_from_options(auth_url=os.environ['OS_AUTH_URL'],
+                                        username=os.environ['OS_USERNAME'],
+                                        password=os.environ['OS_PASSWORD'],
+                                        project_name=os.environ[
+                                            'OS_PROJECT_NAME'],
+                                        project_domain_name=os.environ['OS_PROJECT_DOMAIN_NAME'])
+        sess = session.Session(auth=auth)
+
     heat = client.Client('1', session=sess)
     return heat
 
@@ -31,11 +46,14 @@ def get_heat_client():
 def get_resource_obj(heat, resource):
     rsrc_obj = {}
     rsrc_obj['restype'] = resource.resource_type
+    #print("%s -> %s" % (resource.resource_name, resource.required_by()))
+    #if type(resource) != list:
+    #    rsrc_obj['required_by'] = resource.required_by()
     nested_stack = resource_nested_identifier(resource)
     if nested_stack:
         stacktree = {}
         traverse(heat, nested_stack, stacktree)
-        if stacktree
+        if stacktree:
             rsrc_obj['nested'] = stacktree
     return {resource.resource_name: rsrc_obj}
 
