@@ -2,6 +2,7 @@
 
 import os
 import yaml
+from collections import OrderedDict
 
 from keystoneauth1 import loading
 from keystoneauth1 import session
@@ -44,18 +45,22 @@ def get_heat_client():
 
 
 def get_resource_obj(heat, resource):
-    rsrc_obj = {}
-    rsrc_obj['restype'] = resource.resource_type
+    rsrc_obj = OrderedDict()
+    rsrc_obj['resource_type'] = resource.resource_type
+    name = resource.resource_name
+    if all(i.isdigit() for i in name):
+        service_name = resource.resource_type.split('::')[-1]
+        name = name + ' (' + service_name + ')'
     #print("%s -> %s" % (resource.resource_name, resource.required_by()))
-    #if type(resource) != list:
+    # if type(resource) != list:
     #    rsrc_obj['required_by'] = resource.required_by()
     nested_stack = resource_nested_identifier(resource)
     if nested_stack:
         stacktree = {}
         traverse(heat, nested_stack, stacktree)
         if stacktree:
-            rsrc_obj['nested'] = stacktree
-    return {resource.resource_name: rsrc_obj}
+            rsrc_obj['nested_stack'] = stacktree
+    return {name: rsrc_obj}
 
 
 def traverse(heat, stack_name, stacktree):
@@ -68,12 +73,28 @@ def traverse(heat, stack_name, stacktree):
         stacktree[stack_name] = res_obj
 
 
+def ordered_dump(data, stream=None, Dumper=yaml.Dumper, **kwds):
+    class OrderedDumper(Dumper):
+        pass
+
+    def _dict_representer(dumper, data):
+        return dumper.represent_mapping(
+            yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+            data.items())
+    OrderedDumper.add_representer(OrderedDict, _dict_representer)
+    return yaml.dump(data, stream, OrderedDumper, **kwds)
+
+# usage:
+
+
 def main():
     heat = get_heat_client()
     stacktree = {}
     traverse(heat, 'overcloud', stacktree)
-    print(yaml.safe_dump(stacktree, default_flow_style=False,
-                         encoding='utf-8', allow_unicode=True))
+    # print(yaml.safe_dump(stacktree, default_flow_style=False,
+    #                     encoding='utf-8', allow_unicode=True))
+    print(ordered_dump(stacktree, Dumper=yaml.SafeDumper, default_flow_style=False,
+                       encoding='utf-8', allow_unicode=True))
 
 if __name__ == '__main__':
     main()
