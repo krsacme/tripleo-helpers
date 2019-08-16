@@ -25,7 +25,7 @@ def get_heat_client():
         password = v3.PasswordMethod(username=os.environ['OS_USERNAME'],
                                      password=os.environ['OS_PASSWORD'],
                                      user_domain_name=os.environ['OS_USER_DOMAIN_NAME'])
-        auth = v3.Auth(auth_url=os.environ['OS_AUTH_URL'] + 'v3',
+        auth = v3.Auth(auth_url=os.environ['OS_AUTH_URL'] + '/v3',
                        auth_methods=[password],
                        project_name=os.environ['OS_PROJECT_NAME'],
                        project_domain_name=os.environ['OS_PROJECT_DOMAIN_NAME'])
