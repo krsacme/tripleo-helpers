@@ -1,0 +1,61 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    rhel_image_path: "/home/stack/rhel-guest-image.qcow2"
+    public_key_file: "/home/stack/.ssh/id_rsa.pub"
+    ov_access_nw: "172.50.0"
+    physnet_name: "dpdk1"
+    physnet_type: "vlan"
+    physnet_vlanid: "502"
+  tasks:
+    - name: "Create and associate a floating ip with instance"
+      os_floating_ip:
+        cloud: overcloud
+        server: data1
+        nat_destination: data1
+        wait: true
+        state: absent
+
+    - name: "Create a guest VM"
+      os_server:
+        name: data1
+        cloud: overcloud
+        state: absent
+
+    - name: "Create Router for provider network"
+      os_router:
+        name: data1
+        cloud: overcloud
+        state: absent
+
+    - name: "Create Neutron Public Network"
+      os_network:
+        name: access
+        cloud: overcloud
+        state: absent
+
+    - name: "Create RHEL image"
+      os_image:
+        name: rhel
+        cloud: overcloud
+        state: absent
+
+    - name: "Create a keypair"
+      os_keypair:
+        name: stack_user_key
+        cloud: overcloud
+        state: absent
+
+    - name: "Create flavor with hugepages"
+      os_nova_flavor:
+        name: "m1.nano"
+        cloud: overcloud
+        state: absent
+
+    - name: "Create provider network"
+      os_network:
+        name: data1
+        cloud: overcloud
+        sate: absent
+
